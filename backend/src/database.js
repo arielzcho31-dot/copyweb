@@ -1,49 +1,98 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
+import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
-import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, '..', 'data', 'facturacion.db');
+const { Pool } = pg;
+let pool;
 
-let db;
-
-export function getDb() {
-  if (!db) {
-    const dir = path.dirname(DB_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    initSchema();
-  }
-  return db;
+function param(sql, params) {
+  let idx = 0;
+  const text = sql.replace(/\?/g, () => `$${++idx}`);
+  return { text, values: params };
 }
 
-function initSchema() {
-  db.exec(`
+export async function run(sql, ...params) {
+  const { text, values } = param(sql, params);
+  return pool.query(text, values);
+}
+
+export async function get(sql, ...params) {
+  const { text, values } = param(sql, params);
+  const result = await pool.query(text, values);
+  return result.rows[0] || null;
+}
+
+export async function all(sql, ...params) {
+  const { text, values } = param(sql, params);
+  const result = await pool.query(text, values);
+  return result.rows;
+}
+
+export async function raw(sql, params) {
+  return pool.query(sql, params);
+}
+
+export async function transaction(callback) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback({
+      run: async (sql, ...params) => {
+        const { text, values } = param(sql, params);
+        return client.query(text, values);
+      },
+      get: async (sql, ...params) => {
+        const { text, values } = param(sql, params);
+        const r = await client.query(text, values);
+        return r.rows[0] || null;
+      },
+      all: async (sql, ...params) => {
+        const { text, values } = param(sql, params);
+        const r = await client.query(text, values);
+        return r.rows;
+      }
+    });
+    await client.query('COMMIT');
+    return result;
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function initDb() {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/copycenter',
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  });
+
+  await pool.query('SELECT 1');
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS sucursales (
       id TEXT PRIMARY KEY,
       nombre TEXT NOT NULL,
       direccion TEXT,
       telefono TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id TEXT PRIMARY KEY,
       nombre TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       rol TEXT DEFAULT 'usuario',
-      sucursal_id TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (sucursal_id) REFERENCES sucursales(id)
-    );
+      sucursal_id TEXT REFERENCES sucursales(id),
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS empresas (
       id TEXT PRIMARY KEY,
       nombre TEXT NOT NULL,
@@ -52,120 +101,119 @@ function initSchema() {
       telefono TEXT,
       email TEXT,
       logo TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
+      logo_url TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS facturas (
       id TEXT PRIMARY KEY,
       tipo TEXT NOT NULL CHECK(tipo IN ('ingreso', 'egreso')),
       numero_factura TEXT NOT NULL,
-      fecha TEXT NOT NULL,
-      monto REAL NOT NULL,
+      fecha DATE NOT NULL,
+      monto DOUBLE PRECISION NOT NULL,
       tipo_iva TEXT DEFAULT '10' CHECK(tipo_iva IN ('exonerado', '5', '10')),
       tipo_pago TEXT DEFAULT 'contado' CHECK(tipo_pago IN ('contado', 'credito')),
       ruc TEXT,
       nombre_cliente TEXT,
-      empresa_id TEXT,
-      sucursal_id TEXT,
+      cliente_direccion TEXT,
+      cliente_telefono TEXT,
+      empresa_id TEXT REFERENCES empresas(id),
+      sucursal_id TEXT REFERENCES sucursales(id),
       file_path TEXT,
+      creado_por TEXT,
       observacion TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (empresa_id) REFERENCES empresas(id),
-      FOREIGN KEY (sucursal_id) REFERENCES sucursales(id)
-    );
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS presupuestos (
       id TEXT PRIMARY KEY,
       numero TEXT UNIQUE NOT NULL,
-      fecha TEXT NOT NULL,
+      fecha DATE NOT NULL,
       cliente_nombre TEXT NOT NULL,
       cliente_ruc TEXT,
       cliente_direccion TEXT,
       cliente_email TEXT,
       notas TEXT,
-      subtotal REAL NOT NULL DEFAULT 0,
-      iva REAL NOT NULL DEFAULT 0,
+      subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
+      iva DOUBLE PRECISION NOT NULL DEFAULT 0,
       tipo_iva TEXT DEFAULT '10' CHECK(tipo_iva IN ('exonerado', '5', '10')),
-      total REAL NOT NULL DEFAULT 0,
-      empresa_id TEXT,
-      sucursal_id TEXT,
+      total DOUBLE PRECISION NOT NULL DEFAULT 0,
+      empresa_id TEXT REFERENCES empresas(id),
+      sucursal_id TEXT REFERENCES sucursales(id),
       estado TEXT DEFAULT 'borrador' CHECK(estado IN ('borrador','enviado','aceptado','rechazado')),
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (empresa_id) REFERENCES empresas(id),
-      FOREIGN KEY (sucursal_id) REFERENCES sucursales(id)
-    );
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS presupuesto_items (
       id TEXT PRIMARY KEY,
-      presupuesto_id TEXT NOT NULL,
+      presupuesto_id TEXT NOT NULL REFERENCES presupuestos(id) ON DELETE CASCADE,
       descripcion TEXT NOT NULL,
       cantidad INTEGER NOT NULL DEFAULT 1,
-      precio_unitario REAL NOT NULL,
-      total REAL NOT NULL,
-      FOREIGN KEY (presupuesto_id) REFERENCES presupuestos(id) ON DELETE CASCADE
-    );
+      precio_unitario DOUBLE PRECISION NOT NULL,
+      total DOUBLE PRECISION NOT NULL
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS sync_log (
       id TEXT PRIMARY KEY,
       tabla TEXT NOT NULL,
       accion TEXT NOT NULL,
       registro_id TEXT NOT NULL,
       sucursal_id TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS libros (
       id TEXT PRIMARY KEY,
       titulo TEXT NOT NULL,
       autor TEXT,
       editorial TEXT,
       isbn TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS ventas_libros (
-      id TEXT PRIMARY KEY,
-      libro_id TEXT NOT NULL,
-      fecha TEXT NOT NULL,
-      sucursal_id TEXT,
-      repuesto INTEGER DEFAULT 0,
-      cantidad INTEGER DEFAULT 1,
-      precio REAL DEFAULT 0,
-      creado_por TEXT,
-      observacion TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (libro_id) REFERENCES libros(id),
-      FOREIGN KEY (sucursal_id) REFERENCES sucursales(id)
-    );
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
   `);
 
-  // Migraciones para tablas existentes
-  try { db.exec("ALTER TABLE facturas ADD COLUMN tipo_iva TEXT DEFAULT '10'"); } catch {}
-  try { db.exec("ALTER TABLE facturas ADD COLUMN tipo_pago TEXT DEFAULT 'contado'"); } catch {}
-  try { db.exec("ALTER TABLE facturas ADD COLUMN cliente_direccion TEXT"); } catch {}
-  try { db.exec("ALTER TABLE facturas ADD COLUMN cliente_telefono TEXT"); } catch {}
-  try { db.exec("ALTER TABLE facturas ADD COLUMN creado_por TEXT"); } catch {}
-  try { db.exec("ALTER TABLE presupuestos ADD COLUMN tipo_iva TEXT DEFAULT '10'"); } catch {}
-  try { db.exec("ALTER TABLE empresas ADD COLUMN logo_url TEXT"); } catch {}
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ventas_libros (
+      id TEXT PRIMARY KEY,
+      libro_id TEXT NOT NULL REFERENCES libros(id),
+      fecha DATE NOT NULL,
+      sucursal_id TEXT REFERENCES sucursales(id),
+      repuesto INTEGER DEFAULT 0,
+      cantidad INTEGER DEFAULT 1,
+      precio DOUBLE PRECISION DEFAULT 0,
+      creado_por TEXT,
+      observacion TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
-  // Migrar roles viejos ('usuario' → 'sucursal') y asignar admin al primero
-  try {
-    db.prepare("UPDATE usuarios SET rol = 'sucursal' WHERE rol = 'usuario'").run();
-    const firstUser = db.prepare("SELECT id FROM usuarios WHERE rol = 'sucursal' ORDER BY created_at ASC LIMIT 1").get();
-    if (firstUser) {
-      db.prepare("UPDATE usuarios SET rol = 'admin' WHERE id = ?").run(firstUser.id);
-    }
-  } catch {}
+  // Migrar roles viejos y asignar admin al primer usuario
+  await pool.query("UPDATE usuarios SET rol = 'sucursal' WHERE rol = 'usuario'");
+  const firstUser = await get("SELECT id FROM usuarios WHERE rol = 'sucursal' ORDER BY created_at ASC LIMIT 1");
+  if (firstUser) {
+    await run("UPDATE usuarios SET rol = 'admin' WHERE id = ?", firstUser.id);
+  }
 
   // Sembrar empresa Copycenter si no existe
-  const copycenter = db.prepare("SELECT id FROM empresas WHERE ruc = '0000000-0'").get();
+  const copycenter = await get("SELECT id FROM empresas WHERE ruc = '0000000-0'");
   if (!copycenter) {
-    db.prepare("INSERT INTO empresas (id, nombre, ruc, direccion, telefono, email) VALUES (?, ?, ?, ?, ?, ?)").run(
-      uuidv4(), 'Copycenter', '0000000-0', '', '', ''
-    );
+    await run("INSERT INTO empresas (id, nombre, ruc, direccion, telefono, email) VALUES (?, ?, ?, ?, ?, ?)",
+      uuidv4(), 'Copycenter', '0000000-0', '', '', '');
   }
+
+  console.log('Base de datos PostgreSQL inicializada');
 }
