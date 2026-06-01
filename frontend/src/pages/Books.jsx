@@ -11,6 +11,7 @@ export default function Books() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [showVentaForm, setShowVentaForm] = useState(false);
+  const [editingLibro, setEditingLibro] = useState(null);
   const [editingVenta, setEditingVenta] = useState(null);
   const [filtro, setFiltro] = useState({ libro_id: '', sucursal_id: '', repuesto: '' });
   const [catFiltro, setCatFiltro] = useState({ formato: '', color: '' });
@@ -37,10 +38,19 @@ export default function Books() {
     setVentas(await books.ventas(params));
   };
 
-  const handleCreateLibro = async (e) => {
+  const handleSaveLibro = async (e) => {
     e.preventDefault();
-    try { await books.create(form); toast.success('Libro creado'); setShowForm(false); setForm({ titulo: '', autor: '', editorial: '', isbn: '', formato: 'formato_libro', color: 'blanco_negro' }); loadLibros(); }
-    catch (err) { toast.error(err.response?.data?.error || 'Error'); }
+    try {
+      if (editingLibro) { await books.update(editingLibro, form); toast.success('Libro actualizado'); }
+      else { await books.create(form); toast.success('Libro creado'); }
+      setShowForm(false); setEditingLibro(null); setForm({ titulo: '', autor: '', editorial: '', isbn: '', formato: 'formato_libro', color: 'blanco_negro' }); loadLibros();
+    } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
+  };
+
+  const handleEditLibro = (l) => {
+    setForm({ titulo: l.titulo, autor: l.autor || '', editorial: l.editorial || '', isbn: l.isbn || '', formato: l.formato || 'formato_libro', color: l.color || 'blanco_negro' });
+    setEditingLibro(l.id);
+    setShowForm(true);
   };
 
   const handleDeleteLibro = async (id) => {
@@ -87,7 +97,7 @@ export default function Books() {
         <h1 className="text-2xl font-bold text-gray-800">Libros</h1>
         <div className="flex gap-2">
           <button onClick={() => { resetVentaForm(); setEditingVenta(null); setShowVentaForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600"><Plus size={16} /> Registrar Venta</button>
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"><Plus size={16} /> Nuevo Libro</button>
+          <button onClick={() => { setEditingLibro(null); setForm({ titulo: '', autor: '', editorial: '', isbn: '', formato: 'formato_libro', color: 'blanco_negro' }); setShowForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"><Plus size={16} /> Nuevo Libro</button>
         </div>
       </div>
 
@@ -97,10 +107,10 @@ export default function Books() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setShowForm(false); setEditingLibro(null); }}>
           <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-4">Nuevo Libro</h2>
-            <form onSubmit={handleCreateLibro} className="space-y-3">
+            <h2 className="text-lg font-bold mb-4">{editingLibro ? 'Editar Libro' : 'Nuevo Libro'}</h2>
+            <form onSubmit={handleSaveLibro} className="space-y-3">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Título *</label><input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} className="w-full border rounded-lg px-3 py-2" required /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Autor</label><input type="text" value={form.autor} onChange={e => setForm({...form, autor: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Editorial</label><input type="text" value={form.editorial} onChange={e => setForm({...form, editorial: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
@@ -118,8 +128,8 @@ export default function Books() {
                   </select></div>
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="submit" className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">Crear</button>
-                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Cancelar</button>
+                <button type="submit" className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">{editingLibro ? 'Guardar Cambios' : 'Crear'}</button>
+                <button type="button" onClick={() => { setShowForm(false); setEditingLibro(null); }} className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Cancelar</button>
               </div>
             </form>
           </div>
@@ -290,7 +300,10 @@ export default function Books() {
                     <div className="bg-brand-100 p-2 rounded-lg"><BookOpen className="text-brand-600" size={20} /></div>
                     <div><h3 className="font-semibold text-gray-800">{l.titulo}</h3>{l.autor && <p className="text-xs text-gray-500">{l.autor}</p>}</div>
                   </div>
-                  <button onClick={() => handleDeleteLibro(l.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                  <div className="flex gap-1">
+                    <button onClick={() => handleEditLibro(l)} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
+                    <button onClick={() => handleDeleteLibro(l.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                  </div>
                 </div>
                 <div className="flex gap-2 mt-2">
                   <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100">{fmtMap[l.formato] || l.formato}</span>

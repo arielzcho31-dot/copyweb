@@ -62,9 +62,11 @@ export async function transaction(callback) {
 }
 
 export async function initDb() {
+  const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/copycenter';
+  const isLocal = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
   pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/copycenter',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+    connectionString: dbUrl,
+    ssl: isLocal ? false : { rejectUnauthorized: false },
   });
 
   await pool.query('SELECT 1');

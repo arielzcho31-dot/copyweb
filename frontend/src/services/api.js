@@ -64,7 +64,7 @@ export const branches = {
 };
 
 export const books = {
-  list: (q) => api.get('/libros', { params: { q } }).then(r => r.data),
+  list: (params) => api.get('/libros', { params }).then(r => r.data),
   create: (data) => api.post('/libros', data).then(r => r.data),
   update: (id, data) => api.put(`/libros/${id}`, data).then(r => r.data),
   delete: (id) => api.delete(`/libros/${id}`).then(r => r.data),
