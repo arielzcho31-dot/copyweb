@@ -9,6 +9,7 @@ export default function Branches() {
   const [showForm, setShowForm] = useState(false);
   const [showUserForm, setShowUserForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({ nombre: '', direccion: '', telefono: '' });
   const [userForm, setUserForm] = useState({ nombre: '', email: '', password: '', rol: 'sucursal', sucursal_id: '' });
 
@@ -40,12 +41,29 @@ export default function Branches() {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      await auth.createUser(userForm);
-      toast.success('Usuario creado');
-      setShowUserForm(false);
+      if (editingUser) {
+        await auth.updateUser(editingUser, { nombre: userForm.nombre, email: userForm.email, rol: userForm.rol, sucursal_id: userForm.sucursal_id });
+        toast.success('Usuario actualizado');
+      } else {
+        await auth.createUser(userForm);
+        toast.success('Usuario creado');
+      }
+      setShowUserForm(false); setEditingUser(null);
       setUserForm({ nombre: '', email: '', password: '', rol: 'sucursal', sucursal_id: '' });
       loadUsers();
     } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
+  };
+
+  const handleEditUser = (u) => {
+    setUserForm({ nombre: u.nombre, email: u.email, password: '', rol: u.rol, sucursal_id: u.sucursal_id || '' });
+    setEditingUser(u.id);
+    setShowUserForm(true);
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!confirm('¿Eliminar usuario?')) return;
+    try { await auth.deleteUser(id); toast.success('Usuario eliminado'); loadUsers(); }
+    catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   };
 
   const resetForm = () => setForm({ nombre: '', direccion: '', telefono: '' });
@@ -55,7 +73,7 @@ export default function Branches() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Administración</h1>
         <div className="flex gap-2">
-          <button onClick={() => { setShowUserForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+          <button onClick={() => { setEditingUser(null); setUserForm({ nombre: '', email: '', password: '', rol: 'sucursal', sucursal_id: '' }); setShowUserForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
             <UserPlus size={16} /> Nuevo Usuario
           </button>
           <button onClick={() => { resetForm(); setEditing(null); setShowForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600">
@@ -82,13 +100,13 @@ export default function Branches() {
       )}
 
       {showUserForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowUserForm(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setShowUserForm(false); setEditingUser(null); }}>
           <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-4">Nuevo Usuario</h2>
+            <h2 className="text-lg font-bold mb-4">{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
             <form onSubmit={handleCreateUser} className="space-y-3">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label><input type="text" value={userForm.nombre} onChange={e => setUserForm({...userForm, nombre: e.target.value})} className="w-full border rounded-lg px-3 py-2" required /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} className="w-full border rounded-lg px-3 py-2" required /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label><input type="password" value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})} className="w-full border rounded-lg px-3 py-2" required /></div>
+              {!editingUser && <div><label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label><input type="password" value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})} className="w-full border rounded-lg px-3 py-2" required /></div>}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                 <select value={userForm.rol} onChange={e => setUserForm({...userForm, rol: e.target.value})} className="w-full border rounded-lg px-3 py-2">
                   <option value="sucursal">Sucursal</option>
@@ -102,8 +120,8 @@ export default function Branches() {
                 </select>
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="submit" className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">Crear Usuario</button>
-                <button type="button" onClick={() => setShowUserForm(false)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancelar</button>
+                <button type="submit" className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">{editingUser ? 'Actualizar' : 'Crear Usuario'}</button>
+                <button type="button" onClick={() => { setShowUserForm(false); setEditingUser(null); }} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancelar</button>
               </div>
             </form>
           </div>
@@ -134,12 +152,18 @@ export default function Branches() {
           <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><Users size={18} /> Usuarios</h2>
           <div className="space-y-3">
             {users.map(u => (
-              <div key={u.id} className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
-                <div className="bg-green-100 p-3 rounded-lg"><Users className="text-green-600" size={20} /></div>
-                <div>
-                  <h3 className="font-semibold text-gray-800">{u.nombre}</h3>
-                  <p className="text-sm text-gray-500">{u.email}</p>
-                  <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 ${u.rol === 'admin' ? 'bg-brand-100 text-brand-700' : 'bg-green-100 text-green-700'}`}>{u.rol}</span>
+              <div key={u.id} className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-100 p-3 rounded-lg"><Users className="text-green-600" size={20} /></div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">{u.nombre}</h3>
+                    <p className="text-sm text-gray-500">{u.email}</p>
+                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 ${u.rol === 'admin' ? 'bg-brand-100 text-brand-700' : 'bg-green-100 text-green-700'}`}>{u.rol}</span>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={() => handleEditUser(u)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
+                  <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                 </div>
               </div>
             ))}

@@ -25,7 +25,9 @@ export const auth = {
   register: (data) => api.post('/auth/register', data).then(r => r.data),
   me: () => api.get('/auth/me').then(r => r.data),
   createUser: (data) => api.post('/auth/create-user', data).then(r => r.data),
-  listUsers: () => api.get('/auth/users').then(r => r.data)
+  listUsers: () => api.get('/auth/users').then(r => r.data),
+  updateUser: (id, data) => api.put(`/auth/users/${id}`, data).then(r => r.data),
+  deleteUser: (id) => api.delete(`/auth/users/${id}`).then(r => r.data)
 };
 
 export const invoices = {

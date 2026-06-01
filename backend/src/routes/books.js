@@ -7,27 +7,29 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get('/', async (req, res) => {
-  const { q } = req.query;
+  const { q, formato, color } = req.query;
   let sql = 'SELECT * FROM libros WHERE 1=1';
   const params = [];
   if (q) { sql += ' AND (titulo LIKE ? OR autor LIKE ? OR isbn LIKE ?)'; params.push(`%${q}%`, `%${q}%`, `%${q}%`); }
+  if (formato) { sql += ' AND formato = ?'; params.push(formato); }
+  if (color) { sql += ' AND color = ?'; params.push(color); }
   sql += ' ORDER BY titulo';
   res.json(await all(sql, ...params));
 });
 
 router.post('/', async (req, res) => {
-  const { titulo, autor, editorial, isbn } = req.body;
+  const { titulo, autor, editorial, isbn, formato, color } = req.body;
   if (!titulo) return res.status(400).json({ error: 'Título requerido' });
   const id = uuidv4();
-  await run('INSERT INTO libros (id, titulo, autor, editorial, isbn) VALUES (?, ?, ?, ?, ?)',
-    id, titulo, autor || null, editorial || null, isbn || null);
+  await run('INSERT INTO libros (id, titulo, autor, editorial, isbn, formato, color) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    id, titulo, autor || null, editorial || null, isbn || null, formato || 'formato_libro', color || 'blanco_negro');
   res.status(201).json({ id, message: 'Libro creado' });
 });
 
 router.put('/:id', async (req, res) => {
-  const { titulo, autor, editorial, isbn } = req.body;
-  await run("UPDATE libros SET titulo=?, autor=?, editorial=?, isbn=?, updated_at=NOW() WHERE id=?",
-    titulo, autor, editorial, isbn, req.params.id);
+  const { titulo, autor, editorial, isbn, formato, color } = req.body;
+  await run("UPDATE libros SET titulo=?, autor=?, editorial=?, isbn=?, formato=?, color=?, updated_at=NOW() WHERE id=?",
+    titulo, autor, editorial, isbn, formato, color, req.params.id);
   res.json({ message: 'Libro actualizado' });
 });
 

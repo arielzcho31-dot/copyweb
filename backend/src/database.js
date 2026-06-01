@@ -222,6 +222,8 @@ export async function initDb() {
   // Migraciones para columnas nuevas
   try { await pool.query("ALTER TABLE ventas_libros ADD COLUMN formato TEXT DEFAULT 'formato_libro'"); } catch {}
   try { await pool.query("ALTER TABLE ventas_libros ADD COLUMN color TEXT DEFAULT 'blanco_negro'"); } catch {}
+  try { await pool.query("ALTER TABLE libros ADD COLUMN formato TEXT DEFAULT 'formato_libro'"); } catch {}
+  try { await pool.query("ALTER TABLE libros ADD COLUMN color TEXT DEFAULT 'blanco_negro'"); } catch {}
 
   console.log('Base de datos PostgreSQL inicializada');
 }

@@ -71,4 +71,27 @@ router.get('/me', authMiddleware, async (req, res) => {
   res.json(user);
 });
 
+// Admin: actualizar usuario
+router.put('/users/:id', authMiddleware, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo admin' });
+  const { nombre, email, rol, sucursal_id } = req.body;
+  if (!nombre || !email) return res.status(400).json({ error: 'Nombre y email requeridos' });
+  await run("UPDATE usuarios SET nombre=?, email=?, rol=?, sucursal_id=? WHERE id=?",
+    nombre, email, rol || 'sucursal', sucursal_id || null, req.params.id);
+  res.json({ message: 'Usuario actualizado' });
+});
+
+// Admin: eliminar usuario
+router.delete('/users/:id', authMiddleware, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo admin' });
+  const target = await get('SELECT id, rol FROM usuarios WHERE id = ?', req.params.id);
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
+  if (target.rol === 'admin' && target.id !== req.user.id) {
+    return res.status(400).json({ error: 'No puedes eliminar a otro admin' });
+  }
+  if (target.id === req.user.id) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
+  await run('DELETE FROM usuarios WHERE id = ?', req.params.id);
+  res.json({ message: 'Usuario eliminado' });
+});
+
 export default router;

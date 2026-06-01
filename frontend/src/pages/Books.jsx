@@ -13,14 +13,22 @@ export default function Books() {
   const [showVentaForm, setShowVentaForm] = useState(false);
   const [editingVenta, setEditingVenta] = useState(null);
   const [filtro, setFiltro] = useState({ libro_id: '', sucursal_id: '', repuesto: '' });
-  const [form, setForm] = useState({ titulo: '', autor: '', editorial: '', isbn: '' });
+  const [catFiltro, setCatFiltro] = useState({ formato: '', color: '' });
+  const [form, setForm] = useState({ titulo: '', autor: '', editorial: '', isbn: '', formato: 'formato_libro', color: 'blanco_negro' });
   const [ventaForm, setVentaForm] = useState({ libro_id: '', fecha: new Date().toISOString().split('T')[0], sucursal_id: '', repuesto: false, cantidad: 1, precio: 0, observacion: '', formato: 'formato_libro', color: 'blanco_negro' });
 
-  useEffect(() => { loadLibros(); branches.list().then(setSucursales).catch(() => {}); }, []);
+  useEffect(() => { loadLibros(); branches.list().then(setSucursales).catch(() => {}); }, [catFiltro]);
+  useEffect(() => { if (tab === 'libros') loadLibros(); }, [search, tab]);
   useEffect(() => { loadVentas(); }, [filtro, search]);
   useEffect(() => { if (tab === 'ventas') loadVentas(); }, [tab]);
 
-  const loadLibros = async () => { setLibros(await books.list(search || undefined)); };
+  const loadLibros = async () => {
+    const params = {};
+    if (search) params.q = search;
+    if (catFiltro.formato) params.formato = catFiltro.formato;
+    if (catFiltro.color) params.color = catFiltro.color;
+    setLibros(await books.list(params));
+  };
   const loadVentas = async () => {
     const params = {};
     if (filtro.libro_id) params.libro_id = filtro.libro_id;
@@ -31,7 +39,7 @@ export default function Books() {
 
   const handleCreateLibro = async (e) => {
     e.preventDefault();
-    try { await books.create(form); toast.success('Libro creado'); setShowForm(false); setForm({ titulo: '', autor: '', editorial: '', isbn: '' }); loadLibros(); }
+    try { await books.create(form); toast.success('Libro creado'); setShowForm(false); setForm({ titulo: '', autor: '', editorial: '', isbn: '', formato: 'formato_libro', color: 'blanco_negro' }); loadLibros(); }
     catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   };
 
@@ -96,7 +104,19 @@ export default function Books() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Título *</label><input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} className="w-full border rounded-lg px-3 py-2" required /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Autor</label><input type="text" value={form.autor} onChange={e => setForm({...form, autor: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Editorial</label><input type="text" value={form.editorial} onChange={e => setForm({...form, editorial: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">ISBN</label><input type="text" value={form.isbn} onChange={e => setForm({...form, isbn: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Formato</label>
+                  <select value={form.formato} onChange={e => setForm({...form, formato: e.target.value})} className="w-full border rounded-lg px-3 py-2">
+                    <option value="formato_libro">Formato Libro</option>
+                    <option value="mini">Mini</option>
+                    <option value="libro_abierto">Libro Abierto</option>
+                  </select></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                  <select value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="w-full border rounded-lg px-3 py-2">
+                    <option value="blanco_negro">Blanco y Negro</option>
+                    <option value="color">Color</option>
+                  </select></div>
+              </div>
               <div className="flex gap-2 pt-2">
                 <button type="submit" className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">Crear</button>
                 <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Cancelar</button>
@@ -237,11 +257,33 @@ export default function Books() {
 
       {tab === 'libros' && (
         <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="mb-4">
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Buscar libro por título, autor o ISBN..." />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Buscar</label>
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Título, autor o ISBN..." />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Formato</label>
+              <select value={catFiltro.formato} onChange={e => setCatFiltro({...catFiltro, formato: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">Todos</option>
+                <option value="formato_libro">Formato Libro</option>
+                <option value="mini">Mini</option>
+                <option value="libro_abierto">Libro Abierto</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Color</label>
+              <select value={catFiltro.color} onChange={e => setCatFiltro({...catFiltro, color: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">Todos</option>
+                <option value="blanco_negro">Blanco y Negro</option>
+                <option value="color">Color</option>
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {libros.filter(l => !search || l.titulo.toLowerCase().includes(search.toLowerCase()) || l.autor?.toLowerCase().includes(search.toLowerCase())).map(l => (
+            {libros.map(l => {
+              const fmtMap = { mini: 'Mini', formato_libro: 'Formato Libro', libro_abierto: 'Libro Abierto' };
+              return (
               <div key={l.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -250,10 +292,14 @@ export default function Books() {
                   </div>
                   <button onClick={() => handleDeleteLibro(l.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                 </div>
+                <div className="flex gap-2 mt-2">
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100">{fmtMap[l.formato] || l.formato}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${l.color === 'color' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{l.color === 'color' ? 'Color' : 'ByN'}</span>
+                </div>
                 {l.editorial && <p className="text-xs text-gray-400 mt-2">Editorial: {l.editorial}</p>}
                 {l.isbn && <p className="text-xs text-gray-400">ISBN: {l.isbn}</p>}
               </div>
-            ))}
+            )})}
             {libros.length === 0 && <div className="col-span-full text-center py-8 text-gray-400">No hay libros en el catálogo</div>}
           </div>
         </div>
