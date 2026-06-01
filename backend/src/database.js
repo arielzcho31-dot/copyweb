@@ -219,5 +219,9 @@ export async function initDb() {
       uuidv4(), 'Copycenter', '0000000-0', '', '', '');
   }
 
+  // Migraciones para columnas nuevas
+  try { await pool.query("ALTER TABLE ventas_libros ADD COLUMN formato TEXT DEFAULT 'formato_libro'"); } catch {}
+  try { await pool.query("ALTER TABLE ventas_libros ADD COLUMN color TEXT DEFAULT 'blanco_negro'"); } catch {}
+
   console.log('Base de datos PostgreSQL inicializada');
 }

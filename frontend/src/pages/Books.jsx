@@ -14,7 +14,7 @@ export default function Books() {
   const [editingVenta, setEditingVenta] = useState(null);
   const [filtro, setFiltro] = useState({ libro_id: '', sucursal_id: '', repuesto: '' });
   const [form, setForm] = useState({ titulo: '', autor: '', editorial: '', isbn: '' });
-  const [ventaForm, setVentaForm] = useState({ libro_id: '', fecha: new Date().toISOString().split('T')[0], sucursal_id: '', repuesto: false, cantidad: 1, precio: 0, observacion: '' });
+  const [ventaForm, setVentaForm] = useState({ libro_id: '', fecha: new Date().toISOString().split('T')[0], sucursal_id: '', repuesto: false, cantidad: 1, precio: 0, observacion: '', formato: 'formato_libro', color: 'blanco_negro' });
 
   useEffect(() => { loadLibros(); branches.list().then(setSucursales).catch(() => {}); }, []);
   useEffect(() => { loadVentas(); }, [filtro, search]);
@@ -48,7 +48,7 @@ export default function Books() {
   };
 
   const handleEditVenta = (v) => {
-    setVentaForm({ libro_id: v.libro_id, fecha: v.fecha, sucursal_id: v.sucursal_id || '', repuesto: !!v.repuesto, cantidad: v.cantidad, precio: v.precio, observacion: v.observacion || '' });
+    setVentaForm({ libro_id: v.libro_id, fecha: v.fecha, sucursal_id: v.sucursal_id || '', repuesto: !!v.repuesto, cantidad: v.cantidad, precio: v.precio, observacion: v.observacion || '', formato: v.formato || 'formato_libro', color: v.color || 'blanco_negro' });
     setEditingVenta(v.id);
     setShowVentaForm(true);
   };
@@ -71,7 +71,7 @@ export default function Books() {
     catch (err) { toast.error('Error'); }
   };
 
-  const resetVentaForm = () => setVentaForm({ libro_id: '', fecha: new Date().toISOString().split('T')[0], sucursal_id: '', repuesto: false, cantidad: 1, precio: 0, observacion: '' });
+  const resetVentaForm = () => setVentaForm({ libro_id: '', fecha: new Date().toISOString().split('T')[0], sucursal_id: '', repuesto: false, cantidad: 1, precio: 0, observacion: '', formato: 'formato_libro', color: 'blanco_negro' });
 
   return (
     <div>
@@ -130,6 +130,19 @@ export default function Books() {
                   </select>
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Formato</label>
+                  <select value={ventaForm.formato} onChange={e => setVentaForm({...ventaForm, formato: e.target.value})} className="w-full border rounded-lg px-3 py-2">
+                    <option value="formato_libro">Formato Libro</option>
+                    <option value="mini">Mini</option>
+                    <option value="libro_abierto">Libro Abierto</option>
+                  </select></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                  <select value={ventaForm.color} onChange={e => setVentaForm({...ventaForm, color: e.target.value})} className="w-full border rounded-lg px-3 py-2">
+                    <option value="blanco_negro">Blanco y Negro</option>
+                    <option value="color">Color</option>
+                  </select></div>
+              </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="repuesto" checked={ventaForm.repuesto} onChange={e => setVentaForm({...ventaForm, repuesto: e.target.checked})} className="rounded" />
                 <label htmlFor="repuesto" className="text-sm text-gray-700">Repuesto (repo)</label>
@@ -186,18 +199,24 @@ export default function Books() {
                     <th className="text-left px-4 py-3 font-medium">Fecha</th>
                     <th className="text-center px-4 py-3 font-medium">Cant.</th>
                     <th className="text-right px-4 py-3 font-medium">Precio</th>
+                    <th className="text-center px-4 py-3 font-medium">Formato</th>
+                    <th className="text-center px-4 py-3 font-medium">Color</th>
                     <th className="text-center px-4 py-3 font-medium">Repuesto</th>
                     <th className="text-left px-4 py-3 font-medium">Sucursal</th>
                     <th className="text-center px-4 py-3 font-medium">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {ventas.map(v => (
+                  {ventas.map(v => {
+                    const fmtMap = { mini: 'Mini', formato_libro: 'Formato Libro', libro_abierto: 'Libro Abierto' };
+                    return (
                     <tr key={v.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium">{v.libro_titulo || v.libro_id}</td>
                       <td className="px-4 py-3">{v.fecha}</td>
                       <td className="px-4 py-3 text-center">{v.cantidad}</td>
                       <td className="px-4 py-3 text-right font-mono">Gs {Number(v.precio).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center"><span className="text-xs px-1.5 py-0.5 rounded bg-gray-100">{fmtMap[v.formato] || v.formato}</span></td>
+                      <td className="px-4 py-3 text-center"><span className={`text-xs px-1.5 py-0.5 rounded ${v.color === 'color' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{v.color === 'color' ? 'Color' : 'ByN'}</span></td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${v.repuesto ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{v.repuesto ? 'Sí' : 'No'}</span>
                       </td>
@@ -207,8 +226,8 @@ export default function Books() {
                         <button onClick={() => handleDeleteVenta(v.id)} className="p-1 text-red-600 hover:bg-red-50 rounded ml-1" title="Eliminar"><Trash2 size={14} /></button>
                       </td>
                     </tr>
-                  ))}
-                  {ventas.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">No hay ventas registradas</td></tr>}
+                  )})}
+                  {ventas.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-gray-400">No hay ventas registradas</td></tr>}
                 </tbody>
               </table>
             </div>

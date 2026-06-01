@@ -61,21 +61,21 @@ router.get('/ventas', async (req, res) => {
 });
 
 router.post('/ventas', async (req, res) => {
-  const { libro_id, fecha, sucursal_id, repuesto, cantidad, precio, observacion } = req.body;
+  const { libro_id, fecha, sucursal_id, repuesto, cantidad, precio, observacion, formato, color } = req.body;
   if (!libro_id) return res.status(400).json({ error: 'Libro requerido' });
 
   const id = uuidv4();
-  await run('INSERT INTO ventas_libros (id, libro_id, fecha, sucursal_id, repuesto, cantidad, precio, creado_por, observacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    id, libro_id, fecha || new Date().toISOString().split('T')[0], sucursal_id || null, repuesto ? 1 : 0, cantidad || 1, precio || 0, req.user.id, observacion || null);
+  await run('INSERT INTO ventas_libros (id, libro_id, fecha, sucursal_id, repuesto, cantidad, precio, creado_por, observacion, formato, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    id, libro_id, fecha || new Date().toISOString().split('T')[0], sucursal_id || null, repuesto ? 1 : 0, cantidad || 1, precio || 0, req.user.id, observacion || null, formato || 'formato_libro', color || 'blanco_negro');
 
   res.status(201).json({ id, message: 'Venta registrada' });
 });
 
 router.put('/ventas/:id', async (req, res) => {
-  const { repuesto, fecha, cantidad, precio, observacion } = req.body;
+  const { repuesto, fecha, cantidad, precio, observacion, formato, color } = req.body;
   if (!fecha) return res.status(400).json({ error: 'Fecha requerida' });
-  await run("UPDATE ventas_libros SET repuesto=?, fecha=?, cantidad=?, precio=?, observacion=?, created_at=NOW() WHERE id=?",
-    repuesto ? 1 : 0, fecha, cantidad || 1, precio || 0, observacion || null, req.params.id);
+  await run("UPDATE ventas_libros SET repuesto=?, fecha=?, cantidad=?, precio=?, observacion=?, formato=?, color=?, created_at=NOW() WHERE id=?",
+    repuesto ? 1 : 0, fecha, cantidad || 1, precio || 0, observacion || null, formato || 'formato_libro', color || 'blanco_negro', req.params.id);
   res.json({ message: 'Venta actualizada' });
 });
 
