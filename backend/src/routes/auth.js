@@ -14,7 +14,7 @@ router.post('/register', async (req, res) => {
   if (exists) return res.status(400).json({ error: 'Email ya registrado' });
 
   const userCount = await get('SELECT COUNT(*) as count FROM usuarios');
-  const userRol = userCount.count === 0 ? 'admin' : (rol || 'sucursal');
+  const userRol = Number(userCount.count) === 0 ? 'admin' : (rol || 'sucursal');
 
   const hashed = bcrypt.hashSync(password, 10);
   const id = uuidv4();
