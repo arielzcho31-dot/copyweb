@@ -144,7 +144,10 @@ export default function Books() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Libro *</label>
                 <select value={ventaForm.libro_id} onChange={e => setVentaForm({...ventaForm, libro_id: e.target.value})} className="w-full border rounded-lg px-3 py-2" required>
                   <option value="">Seleccionar libro</option>
-                  {libros.map(l => <option key={l.id} value={l.id}>{l.titulo}</option>)}
+                  {libros.map(l => {
+                    const fmtMap = { mini: 'Mini', formato_libro: 'FL', libro_abierto: 'LA' };
+                    return <option key={l.id} value={l.id}>{l.titulo} ({fmtMap[l.formato] || l.formato} / {l.color === 'color' ? 'Color' : 'ByN'})</option>;
+                  })}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -195,7 +198,10 @@ export default function Books() {
                 <label className="block text-xs text-gray-500 mb-1">Libro</label>
                 <select value={filtro.libro_id} onChange={e => setFiltro({...filtro, libro_id: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm">
                   <option value="">Todos</option>
-                  {libros.map(l => <option key={l.id} value={l.id}>{l.titulo}</option>)}
+                  {libros.map(l => {
+                    const fmtMap = { mini: 'Mini', formato_libro: 'FL', libro_abierto: 'LA' };
+                    return <option key={l.id} value={l.id}>{l.titulo} ({fmtMap[l.formato] || l.formato} / {l.color === 'color' ? 'Color' : 'ByN'})</option>;
+                  })}
                 </select>
               </div>
               <div>
