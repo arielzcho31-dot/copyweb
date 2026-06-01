@@ -19,7 +19,7 @@ export default function Branches() {
 
   const load = async () => { setLista(await branches.list()); };
   const loadUsers = async () => { try { setUsers(await auth.listUsers()); } catch {} };
-  const loadLogs = async () => { try { setLogs(await audit.list()); } catch {} };
+  const loadLogs = async () => { try { const data = await audit.list(); setLogs(data.rows || data); } catch {} };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
