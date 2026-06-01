@@ -257,4 +257,3 @@ export async function logAction(usuarioId, usuarioNombre, tabla, accion, registr
     console.error('Error logging audit:', e.message);
   }
 }
-}
