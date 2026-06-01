@@ -203,9 +203,9 @@ export default function Branches() {
                   <tr key={l.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-xs">{new Date(l.created_at).toLocaleString()}</td>
                     <td className="px-4 py-3">{l.usuario_nombre}</td>
-                    <td className="px-4 py-3"><span className="text-xs px-1.5 py-0.5 rounded bg-gray-100">{l.seccion}</span></td>
+                    <td className="px-4 py-3"><span className="text-xs px-1.5 py-0.5 rounded bg-gray-100">{l.tabla}</span></td>
                     <td className="px-4 py-3">{l.accion}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{l.detalle ? JSON.stringify(l.detalle) : '-'}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{l.detalles || '-'}</td>
                   </tr>
                 ))}
                 {logs.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Sin registros</td></tr>}
