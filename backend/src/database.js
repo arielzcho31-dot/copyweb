@@ -201,11 +201,15 @@ export async function initDb() {
     )
   `);
 
-  // Migrar roles viejos y asignar admin al primer usuario
+  // Migrar roles viejos y asegurar que haya al menos un admin
   await pool.query("UPDATE usuarios SET rol = 'sucursal' WHERE rol = 'usuario'");
-  const firstUser = await get("SELECT id FROM usuarios WHERE rol = 'sucursal' ORDER BY created_at ASC LIMIT 1");
-  if (firstUser) {
-    await run("UPDATE usuarios SET rol = 'admin' WHERE id = ?", firstUser.id);
+  const adminExists = await get("SELECT id FROM usuarios WHERE rol = 'admin' LIMIT 1");
+  if (!adminExists) {
+    const firstUser = await get("SELECT id FROM usuarios ORDER BY created_at ASC LIMIT 1");
+    if (firstUser) {
+      await run("UPDATE usuarios SET rol = 'admin' WHERE id = ?", firstUser.id);
+      console.log('Primer usuario promovido a admin');
+    }
   }
 
   // Sembrar empresa Copycenter si no existe
