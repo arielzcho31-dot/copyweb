@@ -243,7 +243,7 @@ export default function Budgets() {
                   </select>
                 </div>
               </div>
-              <ClientAutocomplete nombre={form.cliente_nombre} setNombre={v => setForm({ ...form, cliente_nombre: v })} ruc={form.cliente_ruc} setRuc={v => setForm({ ...form, cliente_ruc: v })} direccion={form.cliente_direccion} setDireccion={v => setForm({ ...form, cliente_direccion: v })} telefono={form.cliente_telefono} setTelefono={v => setForm({ ...form, cliente_telefono: v })} email={form.cliente_email} setEmail={v => setForm({ ...form, cliente_email: v })} requiredName />
+              <ClientAutocomplete nombre={form.cliente_nombre} setNombre={v => setForm(p => ({ ...p, cliente_nombre: v }))} ruc={form.cliente_ruc} setRuc={v => setForm(p => ({ ...p, cliente_ruc: v }))} direccion={form.cliente_direccion} setDireccion={v => setForm(p => ({ ...p, cliente_direccion: v }))} telefono={form.cliente_telefono} setTelefono={v => setForm(p => ({ ...p, cliente_telefono: v }))} email={form.cliente_email} setEmail={v => setForm(p => ({ ...p, cliente_email: v }))} requiredName />
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>

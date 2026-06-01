@@ -221,7 +221,7 @@ export default function Invoices() {
                   {form.monto && form.tipo_iva !== 'exonerado' && <p className="text-xs text-gray-500 mt-1">IVA: Gs {ivaForm.toLocaleString()}</p>}</div>
               </div>
               {form.tipo === 'ingreso' ? (
-                <><ClientAutocomplete nombre={form.nombre_cliente} setNombre={v => setForm({...form, nombre_cliente: v})} ruc={form.ruc} setRuc={v => setForm({...form, ruc: v})} direccion={form.cliente_direccion} setDireccion={v => setForm({...form, cliente_direccion: v})} telefono={form.cliente_telefono} setTelefono={v => setForm({...form, cliente_telefono: v})} />
+                <><ClientAutocomplete nombre={form.nombre_cliente} setNombre={v => setForm(p => ({...p, nombre_cliente: v}))} ruc={form.ruc} setRuc={v => setForm(p => ({...p, ruc: v}))} direccion={form.cliente_direccion} setDireccion={v => setForm(p => ({...p, cliente_direccion: v}))} telefono={form.cliente_telefono} setTelefono={v => setForm(p => ({...p, cliente_telefono: v}))} />
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label><input type="text" value={form.cliente_direccion} onChange={e => setForm({...form, cliente_direccion: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input type="text" value={form.cliente_telefono} onChange={e => setForm({...form, cliente_telefono: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
