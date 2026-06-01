@@ -183,6 +183,7 @@ export async function initDb() {
       autor TEXT,
       editorial TEXT,
       isbn TEXT,
+      precio DOUBLE PRECISION DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     )
@@ -226,6 +227,34 @@ export async function initDb() {
   try { await pool.query("ALTER TABLE ventas_libros ADD COLUMN color TEXT DEFAULT 'blanco_negro'"); } catch {}
   try { await pool.query("ALTER TABLE libros ADD COLUMN formato TEXT DEFAULT 'formato_libro'"); } catch {}
   try { await pool.query("ALTER TABLE libros ADD COLUMN color TEXT DEFAULT 'blanco_negro'"); } catch {}
+  try { await pool.query("ALTER TABLE libros ADD COLUMN precio DOUBLE PRECISION DEFAULT 0"); } catch {}
+
+  // Auditoria
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id TEXT PRIMARY KEY,
+        usuario_id TEXT,
+        usuario_nombre TEXT,
+        tabla TEXT NOT NULL,
+        accion TEXT NOT NULL,
+        registro_id TEXT,
+        detalles TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+  } catch {}
 
   console.log('Base de datos PostgreSQL inicializada');
+}
+
+export async function logAction(usuarioId, usuarioNombre, tabla, accion, registroId, detalles) {
+  try {
+    const { v4: uuidv4 } = await import('uuid');
+    await run("INSERT INTO audit_log (id, usuario_id, usuario_nombre, tabla, accion, registro_id, detalles) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      uuidv4(), usuarioId, usuarioNombre, tabla, accion, registroId, detalles ? JSON.stringify(detalles) : null);
+  } catch (e) {
+    console.error('Error logging audit:', e.message);
+  }
+}
 }

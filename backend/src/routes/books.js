@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { get, run, all } from '../database.js';
+import { get, run, all, logAction } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
@@ -18,24 +18,27 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { titulo, autor, editorial, isbn, formato, color } = req.body;
+  const { titulo, autor, editorial, isbn, formato, color, precio } = req.body;
   if (!titulo) return res.status(400).json({ error: 'Título requerido' });
   const id = uuidv4();
-  await run('INSERT INTO libros (id, titulo, autor, editorial, isbn, formato, color) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    id, titulo, autor || null, editorial || null, isbn || null, formato || 'formato_libro', color || 'blanco_negro');
+  await run('INSERT INTO libros (id, titulo, autor, editorial, isbn, formato, color, precio) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    id, titulo, autor || null, editorial || null, isbn || null, formato || 'formato_libro', color || 'blanco_negro', Number(precio) || 0);
+  logAction(req.user.id, req.user.nombre, 'libros', 'crear', id, { titulo });
   res.status(201).json({ id, message: 'Libro creado' });
 });
 
 router.put('/:id', async (req, res) => {
-  const { titulo, autor, editorial, isbn, formato, color } = req.body;
-  await run("UPDATE libros SET titulo=?, autor=?, editorial=?, isbn=?, formato=?, color=?, updated_at=NOW() WHERE id=?",
-    titulo, autor, editorial, isbn, formato, color, req.params.id);
+  const { titulo, autor, editorial, isbn, formato, color, precio } = req.body;
+  await run("UPDATE libros SET titulo=?, autor=?, editorial=?, isbn=?, formato=?, color=?, precio=?, updated_at=NOW() WHERE id=?",
+    titulo, autor, editorial, isbn, formato, color, Number(precio) || 0, req.params.id);
+  logAction(req.user.id, req.user.nombre, 'libros', 'editar', req.params.id, null);
   res.json({ message: 'Libro actualizado' });
 });
 
 router.delete('/:id', async (req, res) => {
   await run('DELETE FROM ventas_libros WHERE libro_id = ?', req.params.id);
   await run('DELETE FROM libros WHERE id = ?', req.params.id);
+  logAction(req.user.id, req.user.nombre, 'libros', 'eliminar', req.params.id, null);
   res.json({ message: 'Libro eliminado' });
 });
 
@@ -70,6 +73,7 @@ router.post('/ventas', async (req, res) => {
   await run('INSERT INTO ventas_libros (id, libro_id, fecha, sucursal_id, repuesto, cantidad, precio, creado_por, observacion, formato, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     id, libro_id, fecha || new Date().toISOString().split('T')[0], sucursal_id || null, repuesto ? 1 : 0, cantidad || 1, precio || 0, req.user.id, observacion || null, formato || 'formato_libro', color || 'blanco_negro');
 
+  logAction(req.user.id, req.user.nombre, 'ventas_libros', 'crear', id, { libro_id, cantidad });
   res.status(201).json({ id, message: 'Venta registrada' });
 });
 
@@ -78,12 +82,13 @@ router.put('/ventas/:id', async (req, res) => {
   if (!fecha) return res.status(400).json({ error: 'Fecha requerida' });
   await run("UPDATE ventas_libros SET repuesto=?, fecha=?, cantidad=?, precio=?, observacion=?, formato=?, color=?, created_at=NOW() WHERE id=?",
     repuesto ? 1 : 0, fecha, cantidad || 1, precio || 0, observacion || null, formato || 'formato_libro', color || 'blanco_negro', req.params.id);
+  logAction(req.user.id, req.user.nombre, 'ventas_libros', 'editar', req.params.id, { repuesto });
   res.json({ message: 'Venta actualizada' });
 });
 
 router.delete('/ventas/:id', async (req, res) => {
   await run('DELETE FROM ventas_libros WHERE id = ?', req.params.id);
-  res.json({ message: 'Venta eliminada' });
+  logAction(req.user.id, req.user.nombre, 'ventas_libros', 'eliminar', req.params.id, null);
 });
 
 export default router;

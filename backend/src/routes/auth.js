@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { get, run, all } from '../database.js';
+import { get, run, all, logAction } from '../database.js';
 import { generateToken, authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
@@ -21,8 +21,11 @@ router.post('/register', async (req, res) => {
   await run('INSERT INTO usuarios (id, nombre, email, password, rol, sucursal_id) VALUES (?, ?, ?, ?, ?, ?)',
     id, nombre, email, hashed, userRol, sucursal_id || null);
 
+  logAction(id, nombre, 'usuarios', 'registro', id, { email, rol: userRol });
   res.status(201).json({ id, nombre, email, rol: userRol, token: generateToken({ id, nombre, email, rol: userRol, sucursal_id }) });
 });
+
+// Solo admin puede crear usuarios (sucursales)
 
 router.post('/create-user', authMiddleware, async (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo admin puede crear usuarios' });
@@ -78,6 +81,7 @@ router.put('/users/:id', authMiddleware, async (req, res) => {
   if (!nombre || !email) return res.status(400).json({ error: 'Nombre y email requeridos' });
   await run("UPDATE usuarios SET nombre=?, email=?, rol=?, sucursal_id=? WHERE id=?",
     nombre, email, rol || 'sucursal', sucursal_id || null, req.params.id);
+  logAction(req.user.id, req.user.nombre, 'usuarios', 'editar_usuario', req.params.id, { nombre, email, rol });
   res.json({ message: 'Usuario actualizado' });
 });
 
@@ -91,6 +95,7 @@ router.delete('/users/:id', authMiddleware, async (req, res) => {
   }
   if (target.id === req.user.id) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
   await run('DELETE FROM usuarios WHERE id = ?', req.params.id);
+  logAction(req.user.id, req.user.nombre, 'usuarios', 'eliminar_usuario', req.params.id, { targetRol: target.rol });
   res.json({ message: 'Usuario eliminado' });
 });
 

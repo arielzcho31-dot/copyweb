@@ -15,8 +15,17 @@ export default function Books() {
   const [editingVenta, setEditingVenta] = useState(null);
   const [filtro, setFiltro] = useState({ libro_id: '', sucursal_id: '', repuesto: '' });
   const [catFiltro, setCatFiltro] = useState({ formato: '', color: '' });
-  const [form, setForm] = useState({ titulo: '', autor: '', editorial: '', isbn: '', formato: 'formato_libro', color: 'blanco_negro' });
-  const [ventaForm, setVentaForm] = useState({ libro_id: '', fecha: new Date().toISOString().split('T')[0], sucursal_id: '', repuesto: false, cantidad: 1, precio: 0, observacion: '', formato: 'formato_libro', color: 'blanco_negro' });
+  const [form, setForm] = useState({ titulo: '', autor: '', editorial: '', isbn: '', precio: 0, formato: 'formato_libro', color: 'blanco_negro' });
+  const [ventaForm, setVentaForm] = useState({ libro_id: '', libro_search: '', fecha: new Date().toISOString().split('T')[0], sucursal_id: '', repuesto: false, cantidad: 1, precio: 0, observacion: '', formato: 'formato_libro', color: 'blanco_negro' });
+  const [bookSearchResults, setBookSearchResults] = useState([]);
+  const [showBookDropdown, setShowBookDropdown] = useState(false);
+
+  const searchBooks = async (q) => {
+    if (!q || q.length < 2) { setBookSearchResults([]); setShowBookDropdown(false); return; }
+    const results = await books.list({ q });
+    setBookSearchResults(results);
+    setShowBookDropdown(true);
+  };
 
   useEffect(() => { loadLibros(); branches.list().then(setSucursales).catch(() => {}); }, [catFiltro]);
   useEffect(() => { if (tab === 'libros') loadLibros(); }, [search, tab]);
@@ -43,12 +52,12 @@ export default function Books() {
     try {
       if (editingLibro) { await books.update(editingLibro, form); toast.success('Libro actualizado'); }
       else { await books.create(form); toast.success('Libro creado'); }
-      setShowForm(false); setEditingLibro(null); setForm({ titulo: '', autor: '', editorial: '', isbn: '', formato: 'formato_libro', color: 'blanco_negro' }); loadLibros();
+      setShowForm(false); setEditingLibro(null); setForm({ titulo: '', autor: '', editorial: '', isbn: '', precio: 0, formato: 'formato_libro', color: 'blanco_negro' }); loadLibros();
     } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   };
 
   const handleEditLibro = (l) => {
-    setForm({ titulo: l.titulo, autor: l.autor || '', editorial: l.editorial || '', isbn: l.isbn || '', formato: l.formato || 'formato_libro', color: l.color || 'blanco_negro' });
+    setForm({ titulo: l.titulo, autor: l.autor || '', editorial: l.editorial || '', isbn: l.isbn || '', precio: Number(l.precio) || 0, formato: l.formato || 'formato_libro', color: l.color || 'blanco_negro' });
     setEditingLibro(l.id);
     setShowForm(true);
   };
@@ -61,12 +70,21 @@ export default function Books() {
 
   const handleCrearVenta = async (e) => {
     e.preventDefault();
-    try { await books.crearVenta(ventaForm); toast.success('Venta registrada'); setShowVentaForm(false); resetVentaForm(); loadVentas(); loadLibros(); }
+    try {
+      let libroId = ventaForm.libro_id;
+      if (!libroId && ventaForm.libro_search.trim()) {
+        const newLibro = await books.create({ titulo: ventaForm.libro_search.trim(), formato: ventaForm.formato, color: ventaForm.color });
+        libroId = newLibro.id;
+      }
+      if (!libroId) { toast.error('Seleccioná o escribí el nombre del libro'); return; }
+      await books.crearVenta({ ...ventaForm, libro_id: libroId });
+      toast.success('Venta registrada'); setShowVentaForm(false); resetVentaForm(); loadVentas(); loadLibros();
+    }
     catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   };
 
   const handleEditVenta = (v) => {
-    setVentaForm({ libro_id: v.libro_id, fecha: v.fecha, sucursal_id: v.sucursal_id || '', repuesto: !!v.repuesto, cantidad: v.cantidad, precio: v.precio, observacion: v.observacion || '', formato: v.formato || 'formato_libro', color: v.color || 'blanco_negro' });
+    setVentaForm({ libro_id: v.libro_id, libro_search: v.libro_titulo || '', fecha: v.fecha, sucursal_id: v.sucursal_id || '', repuesto: !!v.repuesto, cantidad: v.cantidad, precio: v.precio, observacion: v.observacion || '', formato: v.formato || 'formato_libro', color: v.color || 'blanco_negro' });
     setEditingVenta(v.id);
     setShowVentaForm(true);
   };
@@ -74,12 +92,13 @@ export default function Books() {
   const handleUpdateVenta = async (e) => {
     e.preventDefault();
     try {
-      await books.actualizarVenta(editingVenta, ventaForm);
-      toast.success('Venta actualizada');
-      setShowVentaForm(false);
-      setEditingVenta(null);
-      resetVentaForm();
-      loadVentas();
+      let libroId = ventaForm.libro_id;
+      if (!libroId && ventaForm.libro_search.trim()) {
+        const newLibro = await books.create({ titulo: ventaForm.libro_search.trim(), formato: ventaForm.formato, color: ventaForm.color });
+        libroId = newLibro.id;
+      }
+      await books.actualizarVenta(editingVenta, { ...ventaForm, libro_id: libroId || ventaForm.libro_id });
+      toast.success('Venta actualizada'); setShowVentaForm(false); setEditingVenta(null); resetVentaForm(); loadVentas();
     } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   };
 
@@ -89,7 +108,7 @@ export default function Books() {
     catch (err) { toast.error('Error'); }
   };
 
-  const resetVentaForm = () => setVentaForm({ libro_id: '', fecha: new Date().toISOString().split('T')[0], sucursal_id: '', repuesto: false, cantidad: 1, precio: 0, observacion: '', formato: 'formato_libro', color: 'blanco_negro' });
+  const resetVentaForm = () => { setVentaForm({ libro_id: '', libro_search: '', fecha: new Date().toISOString().split('T')[0], sucursal_id: '', repuesto: false, cantidad: 1, precio: 0, observacion: '', formato: 'formato_libro', color: 'blanco_negro' }); setShowBookDropdown(false); };
 
   return (
     <div>
@@ -97,7 +116,7 @@ export default function Books() {
         <h1 className="text-2xl font-bold text-gray-800">Libros</h1>
         <div className="flex gap-2">
           <button onClick={() => { resetVentaForm(); setEditingVenta(null); setShowVentaForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600"><Plus size={16} /> Registrar Venta</button>
-          <button onClick={() => { setEditingLibro(null); setForm({ titulo: '', autor: '', editorial: '', isbn: '', formato: 'formato_libro', color: 'blanco_negro' }); setShowForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"><Plus size={16} /> Nuevo Libro</button>
+          <button onClick={() => { setEditingLibro(null); setForm({ titulo: '', autor: '', editorial: '', isbn: '', precio: 0, formato: 'formato_libro', color: 'blanco_negro' }); setShowForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"><Plus size={16} /> Nuevo Libro</button>
         </div>
       </div>
 
@@ -114,6 +133,7 @@ export default function Books() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Título *</label><input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} className="w-full border rounded-lg px-3 py-2" required /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Autor</label><input type="text" value={form.autor} onChange={e => setForm({...form, autor: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Editorial</label><input type="text" value={form.editorial} onChange={e => setForm({...form, editorial: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Precio (Gs)</label><input type="number" value={form.precio} onChange={e => setForm({...form, precio: Number(e.target.value)})} className="w-full border rounded-lg px-3 py-2" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Formato</label>
                   <select value={form.formato} onChange={e => setForm({...form, formato: e.target.value})} className="w-full border rounded-lg px-3 py-2">
@@ -141,14 +161,20 @@ export default function Books() {
           <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-bold mb-4">{editingVenta ? 'Editar Venta' : 'Registrar Venta de Libro'}</h2>
             <form onSubmit={editingVenta ? handleUpdateVenta : handleCrearVenta} className="space-y-3">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Libro *</label>
-                <select value={ventaForm.libro_id} onChange={e => setVentaForm({...ventaForm, libro_id: e.target.value})} className="w-full border rounded-lg px-3 py-2" required>
-                  <option value="">Seleccionar libro</option>
-                  {libros.map(l => {
-                    const fmtMap = { mini: 'Mini', formato_libro: 'FL', libro_abierto: 'LA' };
-                    return <option key={l.id} value={l.id}>{l.titulo} ({fmtMap[l.formato] || l.formato} / {l.color === 'color' ? 'Color' : 'ByN'})</option>;
-                  })}
-                </select>
+              <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">Libro *</label>
+                <input type="text" value={ventaForm.libro_search} onChange={e => { setVentaForm({...ventaForm, libro_search: e.target.value, libro_id: '' }); searchBooks(e.target.value); }} onFocus={e => { if (e.target.value.length >= 2) setShowBookDropdown(true); }} onBlur={() => setTimeout(() => setShowBookDropdown(false), 200)} className="w-full border rounded-lg px-3 py-2" placeholder="Buscar o escribir nuevo libro..." autoComplete="off" />
+                {showBookDropdown && bookSearchResults.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {bookSearchResults.map(l => {
+                      const fmtMap = { mini: 'Mini', formato_libro: 'FL', libro_abierto: 'LA' };
+                      return (
+                        <button key={l.id} type="button" onClick={() => { setVentaForm(prev => ({...prev, libro_id: l.id, libro_search: l.titulo, formato: l.formato || 'formato_libro', color: l.color || 'blanco_negro', precio: Number(l.precio) || 0 })); setShowBookDropdown(false); }} className="w-full text-left px-3 py-2 hover:bg-brand-50 text-sm border-b last:border-b-0">
+                          {l.titulo} <span className="text-xs text-gray-400">({fmtMap[l.formato] || l.formato} / {l.color === 'color' ? 'Color' : 'ByN'})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label><input type="date" value={ventaForm.fecha} onChange={e => setVentaForm({...ventaForm, fecha: e.target.value})} className="w-full border rounded-lg px-3 py-2" /></div>
@@ -315,7 +341,8 @@ export default function Books() {
                   <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100">{fmtMap[l.formato] || l.formato}</span>
                   <span className={`text-xs px-1.5 py-0.5 rounded ${l.color === 'color' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{l.color === 'color' ? 'Color' : 'ByN'}</span>
                 </div>
-                {l.editorial && <p className="text-xs text-gray-400 mt-2">Editorial: {l.editorial}</p>}
+                {l.precio > 0 && <p className="text-xs font-semibold text-brand-600 mt-2">Gs {Number(l.precio).toLocaleString()}</p>}
+                {l.editorial && <p className="text-xs text-gray-400 mt-1">Editorial: {l.editorial}</p>}
                 {l.isbn && <p className="text-xs text-gray-400">ISBN: {l.isbn}</p>}
               </div>
             )})}

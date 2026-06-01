@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Store, UserPlus, Users } from 'lucide-react';
-import { branches, auth } from '../services/api';
+import { Plus, Edit2, Trash2, Store, UserPlus, Users, ClipboardList } from 'lucide-react';
+import { branches, auth, audit } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function Branches() {
+  const [tab, setTab] = useState('sucursales');
   const [lista, setLista] = useState([]);
   const [users, setUsers] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showUserForm, setShowUserForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -13,10 +15,11 @@ export default function Branches() {
   const [form, setForm] = useState({ nombre: '', direccion: '', telefono: '' });
   const [userForm, setUserForm] = useState({ nombre: '', email: '', password: '', rol: 'sucursal', sucursal_id: '' });
 
-  useEffect(() => { load(); loadUsers(); }, []);
+  useEffect(() => { load(); loadUsers(); loadLogs(); }, []);
 
   const load = async () => { setLista(await branches.list()); };
   const loadUsers = async () => { try { setUsers(await auth.listUsers()); } catch {} };
+  const loadLogs = async () => { try { setLogs(await audit.list()); } catch {} };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -128,49 +131,90 @@ export default function Branches() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><Store size={18} /> Sucursales</h2>
-          <div className="space-y-3">
-            {lista.map(s => (
-              <div key={s.id} className="bg-white rounded-xl shadow-sm p-4 flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-brand-100 p-3 rounded-lg"><Store className="text-brand-600" size={20} /></div>
-                  <div><h3 className="font-semibold text-gray-800">{s.nombre}</h3>{s.direccion && <p className="text-sm text-gray-500">{s.direccion}</p>}</div>
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => handleEdit(s)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
-                  <button onClick={() => handleDelete(s.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
-                </div>
-              </div>
-            ))}
-            {lista.length === 0 && <p className="text-center py-8 text-gray-400">No hay sucursales</p>}
-          </div>
-        </div>
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setTab('sucursales')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'sucursales' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600'}`}><Store size={14} className="inline mr-1" /> Sucursales</button>
+        <button onClick={() => setTab('usuarios')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'usuarios' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600'}`}><Users size={14} className="inline mr-1" /> Usuarios</button>
+        <button onClick={() => setTab('logs')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'logs' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600'}`}><ClipboardList size={14} className="inline mr-1" /> Auditoría</button>
+      </div>
 
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><Users size={18} /> Usuarios</h2>
-          <div className="space-y-3">
-            {users.map(u => (
-              <div key={u.id} className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-green-100 p-3 rounded-lg"><Users className="text-green-600" size={20} /></div>
-                  <div>
-                    <h3 className="font-semibold text-gray-800">{u.nombre}</h3>
-                    <p className="text-sm text-gray-500">{u.email}</p>
-                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 ${u.rol === 'admin' ? 'bg-brand-100 text-brand-700' : 'bg-green-100 text-green-700'}`}>{u.rol}</span>
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => handleEditUser(u)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
-                  <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+      {tab === 'sucursales' && (
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><Store size={18} /> Sucursales</h2>
+        <div className="space-y-3">
+          {lista.map(s => (
+            <div key={s.id} className="bg-white rounded-xl shadow-sm p-4 flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-brand-100 p-3 rounded-lg"><Store className="text-brand-600" size={20} /></div>
+                <div><h3 className="font-semibold text-gray-800">{s.nombre}</h3>{s.direccion && <p className="text-sm text-gray-500">{s.direccion}</p>}</div>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => handleEdit(s)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
+                <button onClick={() => handleDelete(s.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+              </div>
+            </div>
+          ))}
+          {lista.length === 0 && <p className="text-center py-8 text-gray-400">No hay sucursales</p>}
+        </div>
+      </div>
+      )}
+
+      {tab === 'usuarios' && (
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><Users size={18} /> Usuarios</h2>
+        <div className="space-y-3">
+          {users.map(u => (
+            <div key={u.id} className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-green-100 p-3 rounded-lg"><Users className="text-green-600" size={20} /></div>
+                <div>
+                  <h3 className="font-semibold text-gray-800">{u.nombre}</h3>
+                  <p className="text-sm text-gray-500">{u.email}</p>
+                  <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 ${u.rol === 'admin' ? 'bg-brand-100 text-brand-700' : 'bg-green-100 text-green-700'}`}>{u.rol}</span>
                 </div>
               </div>
-            ))}
-            {users.length === 0 && <p className="text-center py-8 text-gray-400">No hay usuarios</p>}
+              <div className="flex gap-1">
+                <button onClick={() => handleEditUser(u)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
+                <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+              </div>
+            </div>
+          ))}
+          {users.length === 0 && <p className="text-center py-8 text-gray-400">No hay usuarios</p>}
+        </div>
+      </div>
+      )}
+
+      {tab === 'logs' && (
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><ClipboardList size={18} /> Registro de Auditoría</h2>
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">Fecha/Hora</th>
+                  <th className="text-left px-4 py-3 font-medium">Usuario</th>
+                  <th className="text-left px-4 py-3 font-medium">Sección</th>
+                  <th className="text-left px-4 py-3 font-medium">Acción</th>
+                  <th className="text-left px-4 py-3 font-medium">Detalle</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {logs.map(l => (
+                  <tr key={l.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-xs">{new Date(l.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-3">{l.usuario_nombre}</td>
+                    <td className="px-4 py-3"><span className="text-xs px-1.5 py-0.5 rounded bg-gray-100">{l.seccion}</span></td>
+                    <td className="px-4 py-3">{l.accion}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{l.detalle ? JSON.stringify(l.detalle) : '-'}</td>
+                  </tr>
+                ))}
+                {logs.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Sin registros</td></tr>}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

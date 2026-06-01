@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { get, run, all } from '../database.js';
+import { get, run, all, logAction } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
@@ -85,6 +85,7 @@ router.post('/', async (req, res) => {
   await run(`INSERT INTO facturas (id, tipo, numero_factura, fecha, monto, tipo_iva, tipo_pago, ruc, nombre_cliente, cliente_direccion, cliente_telefono, empresa_id, sucursal_id, creado_por, observacion)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, tipo, numero_factura, fecha, monto, tipo_iva || '10', tipo_pago || 'contado', ruc || null, nombre_cliente || null, cliente_direccion || null, cliente_telefono || null, empresa_id || null, sId || null, creadoPor, observacion || null);
 
+  logAction(req.user.id, req.user.nombre, 'facturas', 'crear', id, { tipo, numero_factura, monto });
   res.status(201).json({ id, message: 'Factura creada' });
 });
 
@@ -96,6 +97,7 @@ router.put('/:id', async (req, res) => {
   await run(`UPDATE facturas SET tipo=?, numero_factura=?, fecha=?, monto=?, tipo_iva=?, tipo_pago=?, ruc=?, nombre_cliente=?, cliente_direccion=?, cliente_telefono=?, empresa_id=?, observacion=?, updated_at=NOW() WHERE id=?`,
     tipo, numero_factura, fecha, monto, tipo_iva, tipo_pago, ruc, nombre_cliente, cliente_direccion, cliente_telefono, empresa_id, observacion, req.params.id);
 
+  logAction(req.user.id, req.user.nombre, 'facturas', 'editar', req.params.id, { tipo, numero_factura, monto });
   res.json({ message: 'Factura actualizada' });
 });
 
@@ -103,7 +105,7 @@ router.delete('/:id', async (req, res) => {
   const factura = await get('SELECT id FROM facturas WHERE id = ?', req.params.id);
   if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
   await run('DELETE FROM facturas WHERE id = ?', req.params.id);
-  res.json({ message: 'Factura eliminada' });
+  logAction(req.user.id, req.user.nombre, 'facturas', 'eliminar', req.params.id, null);
 });
 
 export default router;

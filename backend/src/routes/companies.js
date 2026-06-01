@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { get, run, all } from '../database.js';
+import { get, run, all, logAction } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
@@ -35,6 +35,7 @@ router.post('/', async (req, res) => {
   await run('INSERT INTO empresas (id, nombre, ruc, direccion, telefono, email) VALUES (?, ?, ?, ?, ?, ?)',
     id, nombre, ruc, direccion || null, telefono || null, email || null);
 
+  logAction(req.user.id, req.user.nombre, 'empresas', 'crear', id, { nombre, ruc });
   res.status(201).json({ id, message: 'Empresa creada' });
 });
 
@@ -46,6 +47,7 @@ router.put('/:id', async (req, res) => {
   await run("UPDATE empresas SET nombre=?, ruc=?, direccion=?, telefono=?, email=?, updated_at=NOW() WHERE id=?",
     nombre, ruc, direccion, telefono, email, req.params.id);
 
+  logAction(req.user.id, req.user.nombre, 'empresas', 'editar', req.params.id, { nombre, ruc });
   res.json({ message: 'Empresa actualizada' });
 });
 
@@ -54,7 +56,7 @@ router.delete('/:id', async (req, res) => {
   if (!empresa) return res.status(404).json({ error: 'Empresa no encontrada' });
 
   await run('DELETE FROM empresas WHERE id = ?', req.params.id);
-  res.json({ message: 'Empresa eliminada' });
+  logAction(req.user.id, req.user.nombre, 'empresas', 'eliminar', req.params.id, null);
 });
 
 export default router;

@@ -74,4 +74,8 @@ export const books = {
   actualizarVenta: (id, data) => api.put(`/libros/ventas/${id}`, data).then(r => r.data)
 };
 
+export const audit = {
+  list: (params) => api.get('/audit', { params }).then(r => r.data),
+};
+
 export default api;

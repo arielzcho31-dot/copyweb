@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
-import { initDb, run, all } from './database.js';
+import { initDb, run, all, get } from './database.js';
 import authRoutes from './routes/auth.js';
 import invoiceRoutes from './routes/invoices.js';
 import companyRoutes from './routes/companies.js';
@@ -47,6 +47,16 @@ app.get('/api/sync/pendientes', async (req, res) => {
   if (sucursal_id) { sql += ' AND sucursal_id = ?'; params.push(sucursal_id); }
   sql += ' ORDER BY created_at ASC LIMIT 100';
   res.json(await all(sql, ...params));
+});
+
+// Auditoria
+import { authMiddleware } from './middleware/auth.js';
+app.get('/api/audit', authMiddleware, async (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo admin' });
+  const { limit, offset } = req.query;
+  const rows = await all('SELECT * FROM audit_log ORDER BY created_at DESC LIMIT ? OFFSET ?', parseInt(limit) || 100, parseInt(offset) || 0);
+  const total = await get('SELECT COUNT(*) as count FROM audit_log');
+  res.json({ rows, total: parseInt(total.count) });
 });
 
 // Catch-all para SPA

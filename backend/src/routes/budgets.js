@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { get, run, all, transaction } from '../database.js';
+import { get, run, all, transaction, logAction } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
@@ -64,6 +64,7 @@ router.post('/', async (req, res) => {
     }
   });
 
+  logAction(req.user.id, req.user.nombre, 'presupuestos', 'crear', id, { numero, cliente_nombre });
   res.status(201).json({ id, numero, message: 'Presupuesto creado' });
 });
 
@@ -94,6 +95,7 @@ router.put('/:id', async (req, res) => {
     }
   });
 
+  logAction(req.user.id, req.user.nombre, 'presupuestos', 'editar', req.params.id, null);
   res.json({ message: 'Presupuesto actualizado' });
 });
 
@@ -102,7 +104,7 @@ router.delete('/:id', async (req, res) => {
   if (!presupuesto) return res.status(404).json({ error: 'Presupuesto no encontrado' });
 
   await run('DELETE FROM presupuestos WHERE id = ?', req.params.id);
-  res.json({ message: 'Presupuesto eliminado' });
+  logAction(req.user.id, req.user.nombre, 'presupuestos', 'eliminar', req.params.id, null);
 });
 
 export default router;
